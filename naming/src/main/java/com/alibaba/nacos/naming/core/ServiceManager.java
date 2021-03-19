@@ -80,6 +80,10 @@ public class ServiceManager implements RecordListener<Service> {
     
     /**
      * Map(namespace, Map(group::serviceName, Service)).
+     * key: 命名空间
+     * value:
+     *  key:服务名称
+     *  value:服务实例
      */
     private final Map<String, Map<String, Service>> serviceMap = new ConcurrentHashMap<>();
     
@@ -462,10 +466,13 @@ public class ServiceManager implements RecordListener<Service> {
      */
     public void createServiceIfAbsent(String namespaceId, String serviceName, boolean local, Cluster cluster)
             throws NacosException {
+        // 根据命名空间id和服务名称获取服务对象
         Service service = getService(namespaceId, serviceName);
+        // 服务对象为空创建
         if (service == null) {
-            
+    
             Loggers.SRV_LOG.info("creating empty service {}:{}", namespaceId, serviceName);
+            // 创建服务对象
             service = new Service();
             service.setName(serviceName);
             service.setNamespaceId(namespaceId);
@@ -473,14 +480,19 @@ public class ServiceManager implements RecordListener<Service> {
             // now validate the service. if failed, exception will be thrown
             service.setLastModifiedMillis(System.currentTimeMillis());
             service.recalculateChecksum();
+            // 设置集群相关内容
             if (cluster != null) {
                 cluster.setService(service);
                 service.getClusterMap().put(cluster.getName(), cluster);
             }
+            // 服务对象验证
+            // 1. 名称是否符合[0-9a-zA-Z@\.:_-]+正则
+            // 2. 集群数据验证
             service.validate();
-            
+            // 设置服务
             putServiceAndInit(service);
             if (!local) {
+                // 替换服务对象
                 addOrReplaceService(service);
             }
         }
@@ -498,15 +510,19 @@ public class ServiceManager implements RecordListener<Service> {
      */
     public void registerInstance(String namespaceId, String serviceName, Instance instance) throws NacosException {
         
+        // 创建一个空的服务
         createEmptyService(namespaceId, serviceName, instance.isEphemeral());
         
+        // 根据命名空间id和服务名获取服务对象
         Service service = getService(namespaceId, serviceName);
         
+        // 服务对象为空抛出异常
         if (service == null) {
             throw new NacosException(NacosException.INVALID_PARAM,
                     "service not found, namespace: " + namespaceId + ", service: " + serviceName);
         }
         
+        // 添加实例
         addInstance(namespaceId, serviceName, instance.isEphemeral(), instance);
     }
     
@@ -643,16 +659,18 @@ public class ServiceManager implements RecordListener<Service> {
     public void addInstance(String namespaceId, String serviceName, boolean ephemeral, Instance... ips)
             throws NacosException {
         
+        // 生成key
         String key = KeyBuilder.buildInstanceListKey(namespaceId, serviceName, ephemeral);
-        
+        // 根据命名空间id和服务名获取服务对象
         Service service = getService(namespaceId, serviceName);
         
         synchronized (service) {
+            // 添加ip地址数据
             List<Instance> instanceList = addIpAddresses(service, ephemeral, ips);
             
             Instances instances = new Instances();
             instances.setInstanceList(instanceList);
-            
+            // 一致性服务更新数据
             consistencyService.put(key, instances);
         }
     }
@@ -780,6 +798,7 @@ public class ServiceManager implements RecordListener<Service> {
         Datum datum = consistencyService
                 .get(KeyBuilder.buildInstanceListKey(service.getNamespaceId(), service.getName(), ephemeral));
         
+        // 提取服务中的ip列表将其转换成Instance对象
         List<Instance> currentIPs = service.allIPs(ephemeral);
         Map<String, Instance> currentInstances = new HashMap<>(currentIPs.size());
         Set<String> currentInstanceIds = Sets.newHashSet();
@@ -875,8 +894,11 @@ public class ServiceManager implements RecordListener<Service> {
     }
     
     private void putServiceAndInit(Service service) throws NacosException {
+        // 向map加入当service对象
         putService(service);
+        // 服务初始化方法调用
         service.init();
+        // 触发监听方法
         consistencyService
                 .listen(KeyBuilder.buildInstanceListKey(service.getNamespaceId(), service.getName(), true), service);
         consistencyService

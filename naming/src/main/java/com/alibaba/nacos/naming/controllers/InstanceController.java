@@ -91,7 +91,7 @@ public class InstanceController {
     @Autowired
     private ServiceManager serviceManager;
     
-    private DataSource pushDataSource = new DataSource() {
+    private final DataSource pushDataSource = new DataSource() {
         
         @Override
         public String getData(PushService.PushClient client) {
@@ -123,14 +123,16 @@ public class InstanceController {
     @PostMapping
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
     public String register(HttpServletRequest request) throws Exception {
-        
+        // 提取参数:命名空间ID
         final String namespaceId = WebUtils
                 .optional(request, CommonParams.NAMESPACE_ID, Constants.DEFAULT_NAMESPACE_ID);
+        // 提取参数:服务名
         final String serviceName = WebUtils.required(request, CommonParams.SERVICE_NAME);
+        // 验证参数:服务名
         NamingUtils.checkServiceNameFormat(serviceName);
-        
+        // 提取参数:应用实例相关数据
         final Instance instance = parseInstance(request);
-        
+        // 注册实例
         serviceManager.registerInstance(namespaceId, serviceName, instance);
         return "ok";
     }

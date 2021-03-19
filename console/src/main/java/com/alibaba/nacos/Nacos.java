@@ -16,9 +16,13 @@
 
 package com.alibaba.nacos;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.ServletComponentScan;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -30,8 +34,17 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ServletComponentScan
 @EnableScheduling
 public class Nacos {
-    
+
     public static void main(String[] args) {
         SpringApplication.run(Nacos.class, args);
+    }
+
+    @Autowired
+    private ConfigurableEnvironment environment;
+    @Bean
+    public ApplicationRunner runner(){
+        return args -> {
+            System.out.println(environment.getProperty("db.password"));
+        };
     }
 }
